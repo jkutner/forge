@@ -32,14 +32,14 @@ RUN \
     src/gopkg.in/yaml.v2 && \
   export PATH=/usr/local/go/bin:$PATH && \
   export GOPATH=/tmp/diego-release && \
-  CGO_ENABLED=0 go build -a -installsuffix static -o /tmp/lifecycle/builder code.cloudfoundry.org/buildpackapplifecycle/builder && \
-  CGO_ENABLED=0 go build -a -installsuffix static -o /tmp/lifecycle/launcher code.cloudfoundry.org/buildpackapplifecycle/launcher && \
-  CGO_ENABLED=0 go build -a -installsuffix static -o /tmp/lifecycle/shell code.cloudfoundry.org/buildpackapplifecycle/shell/shell && \
+  CGO_ENABLED=0 go build -a -installsuffix static -o /lifecycle/builder code.cloudfoundry.org/buildpackapplifecycle/builder && \
+  CGO_ENABLED=0 go build -a -installsuffix static -o /lifecycle/launcher code.cloudfoundry.org/buildpackapplifecycle/launcher && \
+  CGO_ENABLED=0 go build -a -installsuffix static -o /lifecycle/shell code.cloudfoundry.org/buildpackapplifecycle/shell/shell && \
   rm -rf /tmp/diego-release /usr/local/go
 
-USER vcap
+USER root
 
-RUN mkdir -p /tmp/app /tmp/cache /home/vcap/tmp /tmp/buildpacks
+RUN mkdir -p /tmp/app /tmp/cache /tmp/buildpacks
 
 {{range .Buildpacks}}
 RUN curl -L -o /tmp/buildpack.zip "{{.URL}}" && unzip /tmp/buildpack.zip -d /tmp/buildpacks/{{.MD5}} && rm /tmp/buildpack.zip

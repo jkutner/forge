@@ -25,11 +25,10 @@ import (
 const stagerScript = `
 	set -e
 	{{- range .BuildpackMD5s}}
-	su vcap -c "unzip -qq /tmp/{{.}}.zip -d /tmp/buildpacks/{{.}}" && rm /tmp/{{.}}.zip
+	su root -c "unzip -qq /tmp/{{.}}.zip -d /tmp/buildpacks/{{.}}" && rm /tmp/{{.}}.zip
 	{{- end}}
 
-	chown -R vcap:vcap /tmp/app /tmp/cache
-	{{if not .RSync}}exec {{end}}su vcap -p -c "PATH=$PATH exec /tmp/lifecycle/builder -buildpackOrder '$0' -skipDetect=$1"
+	{{if not .RSync}}exec {{end}}su root -p -c "PATH=$PATH exec /lifecycle/builder -outputDroplet /droplet -buildpackOrder '$0' -skipDetect=$1"
 	{{- if .RSync}}
 	rsync -a /tmp/app/ /tmp/local/
 	{{- end}}
@@ -136,7 +135,7 @@ func (s *Stager) Stage(config *StageConfig) (droplet engine.Stream, err error) {
 		return engine.Stream{}, err
 	}
 
-	return contr.StreamFileFrom("/tmp/droplet")
+	return contr.StreamFileFrom("/droplet")
 }
 
 func (s *Stager) buildContainerConfig(config *AppConfig, buildpackMD5s []string, forceDetect, rsync bool) (*container.Config, error) {
@@ -195,11 +194,12 @@ func (s *Stager) buildContainerConfig(config *AppConfig, buildpackMD5s []string,
 		"CF_INSTANCE_PORT":  "",
 		"CF_INSTANCE_PORTS": "[]",
 		"CF_STACK":          "cflinuxfs2",
-		"HOME":              "/home/vcap",
+		"HOME":              "/root",
 		"LANG":              "en_US.UTF-8",
 		"MEMORY_LIMIT":      "1024m",
 		"PATH":              "/usr/local/bin:/usr/bin:/bin",
-		"USER":              "vcap",
+		"USER":              "root",
+		"STACK":             "heroku-16",
 		"VCAP_APPLICATION":  string(vcapApp),
 		"VCAP_SERVICES":     string(vcapServices),
 	}
@@ -221,7 +221,7 @@ func (s *Stager) buildContainerConfig(config *AppConfig, buildpackMD5s []string,
 		User:       "root",
 		Env:        mapToEnv(mergeMaps(env, config.StagingEnv, config.Env)),
 		Image:      s.ImageTag,
-		WorkingDir: "/home/vcap",
+		WorkingDir: "/root",
 		Entrypoint: strslice.StrSlice{
 			"/bin/bash", "-c", scriptBuf.String(),
 			strings.Join(buildpacks, ","),

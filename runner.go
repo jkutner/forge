@@ -24,23 +24,27 @@ import (
 const runScript = `
 	set -e
 	{{if .RSync -}}
-	rsync -a /tmp/local/ /home/vcap/app/
+	rsync -a /local/ /app/
 	{{end -}}
-	if [[ ! -z $(ls -A /home/vcap/app) ]]; then
+	if [[ ! -z $(ls -A /app) ]]; then
 		exclude='--exclude=./app'
 	fi
-	tar $exclude -C /home/vcap -xzf /tmp/droplet
-	chown -R vcap:vcap /home/vcap
+	tar $exclude -C / -xzf /droplet
+
 	{{if .RSync -}}
-	if [[ -z $(ls -A /tmp/local) ]]; then
-		rsync -a /home/vcap/app/ /tmp/local/
+	if [[ -z $(ls -A /local) ]]; then
+		rsync -a /app/ /local/
 	fi
 	{{end -}}
 	command=$1
 	if [[ -z $command ]]; then
-		command=$(jq -r .start_command /home/vcap/staging_info.yml)
+		if which jq; then
+			command=$(jq -r .start_command /staging_info.yml)
+		else
+			command=$(cat /staging_info.yml | python -c 'import json,sys;obj=json.load(sys.stdin);print obj["start_command"]')
+		fi
 	fi
-	exec /tmp/lifecycle/launcher /home/vcap/app "$command" ''
+	exec /lifecycle/launcher /app "$command" ''
 `
 
 var bytesPattern = regexp.MustCompile(`(?i)^(-?\d+)([KMGT])B?$`)
@@ -95,9 +99,9 @@ func (r *Runner) Run(config *RunConfig) (status int64, err error) {
 	if err != nil {
 		return 0, err
 	}
-	remoteDir := "/home/vcap/app"
+	remoteDir := "/app"
 	if config.RSync {
-		remoteDir = "/tmp/local"
+		remoteDir = "/local"
 	}
 	memory, err := toMegabytes(config.AppConfig.Memory)
 	if err != nil {
@@ -110,13 +114,13 @@ func (r *Runner) Run(config *RunConfig) (status int64, err error) {
 	}
 	defer contr.Close()
 
-	if err := contr.Mkdir("/tmp/lifecycle"); err != nil {
+	if err := contr.Mkdir("/lifecycle"); err != nil {
 		return 0, err
 	}
-	if err := contr.StreamTarTo(config.Lifecycle, "/tmp/lifecycle"); err != nil {
+	if err := contr.StreamTarTo(config.Lifecycle, "/lifecycle"); err != nil {
 		return 0, err
 	}
-	if err := contr.StreamFileTo(config.Droplet, "/tmp/droplet"); err != nil {
+	if err := contr.StreamFileTo(config.Droplet, "/droplet"); err != nil {
 		return 0, err
 	}
 	color := config.Color("[%s] ", config.AppConfig.Name)
@@ -126,7 +130,7 @@ func (r *Runner) Run(config *RunConfig) (status int64, err error) {
 	if err := contr.Background(); err != nil {
 		return 0, err
 	}
-	return 0, contr.Shell(r.TTY, "/tmp/lifecycle/shell")
+	return 0, contr.Shell(r.TTY, "/lifecycle/shell")
 }
 
 type ExportConfig struct {
@@ -153,13 +157,13 @@ func (r *Runner) Export(config *ExportConfig) (imageID string, err error) {
 	}
 	defer contr.Close()
 
-	if err := contr.Mkdir("/tmp/lifecycle"); err != nil {
+	if err := contr.Mkdir("/lifecycle"); err != nil {
 		return "", err
 	}
-	if err := contr.StreamTarTo(config.Lifecycle, "/tmp/lifecycle"); err != nil {
+	if err := contr.StreamTarTo(config.Lifecycle, "/lifecycle"); err != nil {
 		return "", err
 	}
-	if err := contr.StreamFileTo(config.Droplet, "/tmp/droplet"); err != nil {
+	if err := contr.StreamFileTo(config.Droplet, "/droplet"); err != nil {
 		return "", err
 	}
 
@@ -231,8 +235,9 @@ func (r *Runner) buildContainerConfig(config *AppConfig, stack string, rsync, ne
 		"MEMORY_LIMIT":      fmt.Sprintf("%dm", memory),
 		"PATH":              "/usr/local/bin:/usr/bin:/bin",
 		"PORT":              "8080",
-		"TMPDIR":            "/home/vcap/tmp",
-		"USER":              "vcap",
+		"TMPDIR":            "/tmp",
+		"USER":              "root",
+		"STACK":             "heroku-16",
 		"VCAP_APPLICATION":  string(vcapApp),
 		"VCAP_SERVICES":     string(vcapServices),
 	}
@@ -254,13 +259,16 @@ func (r *Runner) buildContainerConfig(config *AppConfig, stack string, rsync, ne
 
 	return &container.Config{
 		Hostname:     hostname,
-		User:         "vcap",
+		User:         "root",
 		ExposedPorts: ports,
 		Env:          mapToEnv(mergeMaps(env, config.RunningEnv, config.Env)),
 		Image:        stack,
-		WorkingDir:   "/home/vcap/app",
+		WorkingDir:   "/app",
 		Entrypoint: strslice.StrSlice{
-			"/bin/bash", "-c", scriptBuf.String(), config.Command,
+			"/bin/bash", "-c", scriptBuf.String(),
+		},
+		Cmd: strslice.StrSlice{
+			config.Command,
 		},
 	}, nil
 }
