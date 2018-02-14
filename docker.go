@@ -42,7 +42,8 @@ USER root
 RUN mkdir -p /tmp/app /tmp/cache /tmp/buildpacks
 
 {{range .Buildpacks}}
-RUN curl -L -o /tmp/buildpack.zip "{{.URL}}" && unzip /tmp/buildpack.zip -d /tmp/buildpacks/{{.MD5}} && rm /tmp/buildpack.zip
+RUN mkdir -p /tmp/buildpacks/{{.MD5}}
+RUN curl -L -o /tmp/buildpack.tgz "{{.URL}}" && tar xvf /tmp/buildpack.tgz -C /tmp/buildpacks/{{.MD5}} && rm /tmp/buildpack.tgz
 {{end}}
 `
 

@@ -264,11 +264,8 @@ func (r *Runner) buildContainerConfig(config *AppConfig, stack string, rsync, ne
 		Env:          mapToEnv(mergeMaps(env, config.RunningEnv, config.Env)),
 		Image:        stack,
 		WorkingDir:   "/app",
-		Entrypoint: strslice.StrSlice{
-			"/bin/bash", "-c", scriptBuf.String(),
-		},
 		Cmd: strslice.StrSlice{
-			config.Command,
+			"/bin/bash", "-c", scriptBuf.String(),
 		},
 	}, nil
 }
