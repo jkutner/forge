@@ -92,7 +92,7 @@ func (f *Forwarder) Forward(config *ForwardConfig) (health <-chan string, done f
 					fmt.Fprintf(output, "%sError: %s\n", prefix, err)
 					continue
 				}
-				status, err := contr.Start(prefix, output, nil)
+				status, err := contr.Start(prefix, true, output, nil)
 				if err != nil {
 					fmt.Fprintf(output, "%sError: %s\n", prefix, err)
 					continue

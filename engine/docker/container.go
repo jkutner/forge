@@ -121,7 +121,7 @@ func (c *container) Background() error {
 	return c.docker.ContainerStart(ctx, c.id, types.ContainerStartOptions{})
 }
 
-func (c *container) Start(logPrefix string, logs io.Writer, restart <-chan time.Time) (status int64, err error) {
+func (c *container) Start(logPrefix string, timestamps bool, logs io.Writer, restart <-chan time.Time) (status int64, err error) {
 	defer func() {
 		if isErrCanceled(err) {
 			status, err = 128, nil
@@ -147,7 +147,7 @@ func (c *container) Start(logPrefix string, logs io.Writer, restart <-chan time.
 	contLogs, err := c.docker.ContainerLogs(ctx, c.id, types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
-		Timestamps: true,
+		Timestamps: timestamps,
 		Follow:     true,
 	})
 	if err != nil {

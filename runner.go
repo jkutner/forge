@@ -74,7 +74,7 @@ func (r *Runner) Run(config *RunConfig) (status int64, err error) {
 	}
 	color := config.Color("[%s] ", config.AppConfig.Name)
 	if !config.Shell {
-		return contr.Start(color, r.Logs, config.Restart)
+		return contr.Start(color, true, r.Logs, config.Restart)
 	}
 	if err := contr.Background(); err != nil {
 		return 0, err

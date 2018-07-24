@@ -25,6 +25,8 @@ type StageConfig struct {
 	OutputPath    string
 	ForceDetect   bool
 	Color         Colorizer
+	Timestamps    bool
+	Prefix        string
 	AppConfig     *AppConfig
 }
 
@@ -70,7 +72,13 @@ func (s *Stager) Stage(config *StageConfig) (droplet engine.Stream, err error) {
 		}
 	}
 
-	status, err := contr.Start(config.Color("[%s] ", config.AppConfig.Name), s.Logs, nil)
+	prefix := config.Prefix
+	if prefix == "" {
+		// TODO we may want to support empty prefix, which would require a flag
+		prefix = fmt.Sprintf("[%s] ", config.AppConfig.Name)
+	}
+
+	status, err := contr.Start(config.Color(prefix), config.Timestamps, s.Logs, nil)
 	if err != nil {
 		return engine.Stream{}, err
 	}
