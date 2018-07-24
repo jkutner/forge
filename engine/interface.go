@@ -16,7 +16,7 @@ type Container interface {
 	ID() string
 	CloseAfterStream(stream *Stream) error
 	Background() error
-	Start(logPrefix string, logs io.Writer, restart <-chan time.Time) (status int64, err error)
+	Start(logPrefix string, timestamps bool, logs io.Writer, restart <-chan time.Time) (status int64, err error)
 	Shell(tty TTY, shell ...string) (err error)
 	HealthCheck() <-chan string
 	Commit(ref string) (imageID string, err error)
